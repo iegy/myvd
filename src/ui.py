@@ -275,6 +275,8 @@ class TaskCard(QFrame):
 # ------------------------------------------------------------------ dialogs
 
 class AnalysisDialog(QDialog):
+    preview_error = Signal(str)
+
     def __init__(self, a: core.Analysis, thumbs: ThumbLoader, parent=None):
         super().__init__(parent)
         self.a = a
@@ -339,6 +341,7 @@ class AnalysisDialog(QDialog):
         brow = QHBoxLayout()
         self.b_preview = QPushButton("معاينة بدون إعلانات")
         self.b_preview.clicked.connect(self.on_preview)
+        self.preview_error.connect(self.on_preview_error)
         self.b_ok = QPushButton("تحميل")
         self.b_ok.setObjectName("primary")
         self.b_ok.clicked.connect(self.accept)
@@ -385,10 +388,23 @@ class AnalysisDialog(QDialog):
         if not entries:
             return
         q = self.quality()
-        try:
-            core.preview(entries[0].url, q.height, audio_only=q.audio is not None)
-        except Exception as e:
-            QMessageBox.warning(self, "المعاينة", str(e))
+        url, h, audio = entries[0].url, q.height, q.audio is not None
+        self.b_preview.setEnabled(False)
+        self.b_preview.setText("جارٍ فتح المعاينة...")
+
+        def work():
+            try:
+                core.preview(url, h, audio_only=audio)
+                self.preview_error.emit("")
+            except Exception as e:
+                self.preview_error.emit(str(e))
+        threading.Thread(target=work, daemon=True).start()
+
+    def on_preview_error(self, msg: str) -> None:
+        self.b_preview.setEnabled(True)
+        self.b_preview.setText("معاينة بدون إعلانات")
+        if msg:
+            QMessageBox.warning(self, "المعاينة", msg)
 
 
 class SettingsDialog(QDialog):

@@ -282,6 +282,16 @@ def update_ytdlp() -> str:
         return f"فشل التحديث: {e}"
 
 
+def suppress_error_dialogs() -> None:
+    """Child processes inherit this: a missing DLL makes them exit quietly instead of showing a modal box."""
+    if os.name == "nt":
+        try:
+            import ctypes
+            ctypes.windll.kernel32.SetErrorMode(0x0001 | 0x0002 | 0x8000)
+        except Exception:
+            pass
+
+
 def preview(url: str, height: int = 0, audio_only: bool = False) -> None:
     """Play a link in mpv (through yt-dlp) with no ads. Raises RuntimeError if unavailable."""
     mpv = mpv_path()
@@ -292,7 +302,16 @@ def preview(url: str, height: int = 0, audio_only: bool = False) -> None:
     args = [mpv, "--ytdl=yes", f"--ytdl-format={fmt}", "--autofit=70%x70%", "--keep-open=yes", url]
     env = os.environ.copy()
     env["PATH"] = str(bin_dir()) + os.pathsep + env.get("PATH", "")
-    subprocess.Popen(args, env=env, creationflags=NO_WINDOW)
+    suppress_error_dialogs()
+    proc = subprocess.Popen(args, env=env, creationflags=NO_WINDOW)
+    try:
+        rc = proc.wait(timeout=2.0)
+    except subprocess.TimeoutExpired:
+        return  # still running = the player window is up
+    code = rc & 0xFFFFFFFF
+    if code != 0:
+        hint = " — ينقص ملف نظام (مثل vulkan-1.dll)، حدّث البرنامج لآخر نسخة" if code == 0xC0000135 else ""
+        raise RuntimeError(f"تعذّر تشغيل مشغّل المعاينة (كود {hex(code)}){hint}")
 
 
 # ---------------------------------------------------------------- settings

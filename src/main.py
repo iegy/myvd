@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """MYVD for Windows - entry point."""
 import os
+import subprocess
 import sys
 import time
 import traceback
@@ -66,6 +67,13 @@ def selftest(app, ui) -> int:
                 lines.append(f"yt-dlp version: {ver}")
                 if ver in ("غير موجود", "غير معروف"):
                     ok = False
+        if mpv:
+            try:
+                r = subprocess.run([mpv, "--version"], capture_output=True, timeout=30, creationflags=core.NO_WINDOW)
+                first = (r.stdout.decode("utf-8", "replace").splitlines() or [""])[0]
+                lines.append(f"mpv --version exit code {r.returncode & 0xFFFFFFFF:#x}: {first}")
+            except Exception as e:
+                lines.append(f"mpv check error: {e}")
         win.close()
     except Exception:
         ok = False
@@ -79,6 +87,7 @@ def selftest(app, ui) -> int:
 
 
 def main() -> int:
+    core.suppress_error_dialogs()
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QApplication, QMessageBox
     import ui

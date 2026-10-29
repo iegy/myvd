@@ -56,6 +56,19 @@ jobs:
           7z x tmp/mpv-x86_64-*.7z -obin/mpv -y
           ls bin/mpv
 
+      - name: Add Vulkan loader for mpv (vulkan-1.dll)
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -e
+          mkdir -p bin/mpv
+          curl -L --fail --retry 3 -o tmp/vulkan.zip https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-runtime-components.zip
+          7z x tmp/vulkan.zip -otmp/vulkan -y
+          DLL=$(find tmp/vulkan -ipath '*x64*' -name 'vulkan-1.dll' | head -1)
+          echo "found: $DLL"
+          cp "$DLL" bin/mpv/vulkan-1.dll
+          ls -la bin/mpv
+
       - name: Build portable app
         shell: bash
         run: |
